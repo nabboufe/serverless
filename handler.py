@@ -1,11 +1,23 @@
-from model import ExLlama, ExLlamaCache, ExLlamaConfig
-from tokenizer import ExLlamaTokenizer
-from generator import ExLlamaGenerator
+from exllamav2 import (
+    ExLlamaV2,
+    ExLlamaV2Config,
+    ExLlamaV2Cache,
+    ExLlamaV2Tokenizer,
+    ExLlamaV2Lora,
+)
+
+from exllamav2.generator import (
+    ExLlamaV2BaseGenerator,
+    ExLlamaV2StreamingGenerator,
+    ExLlamaV2Sampler
+)
+
 import os, glob
 import logging
 from typing import Generator, Union
 import runpod
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, HfFolder
+
 from copy import copy
 
 import re
@@ -32,91 +44,48 @@ def load_model():
     global generator, default_settings
 
     if not generator:
-        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision=os.getenv("MODEL_REVISION", "main"))
-        tokenizer_path = os.path.join(model_directory, "tokenizer.model")
-        model_config_path = os.path.join(model_directory, "config.json")
-        st_pattern = os.path.join(model_directory, "*.safetensors")
-        st_files = glob.glob(st_pattern)
-        if not st_files:
-            raise ValueError(f"No safetensors files found in {model_directory}")
-        model_path = st_files[0]
+        token_read = os.environ["HF_TOKEN"] #"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"
+        HfFolder.save_token(token_read)
 
-        # Create config, model, tokenizer and generator
-        config = ExLlamaConfig(model_config_path)               # create config from config.json
-        config.model_path = model_path                          # supply path to model weights file
+        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main", local_dir="/llama-fans/hub/full_model")
+        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main", local_dir="/llama-fans/hub/lora")
 
-        gpu_split = os.getenv("GPU_SPLIT", "")
-        if gpu_split:
-            config.set_auto_map(gpu_split)
-            config.gpu_peer_fix = True
-        alpha_value = int(os.getenv("ALPHA_VALUE", "1"))
-        config.max_seq_len = int(os.getenv("MAX_SEQ_LEN", "2048"))
-        if alpha_value != 1:
-            config.alpha_value = alpha_value
-            config.calculate_rotary_embedding_base()
+        config = ExLlamaV2Config()
+        config.model_dir = model_directory
+        config.prepare()
 
-        model = ExLlama(config)                                 # create ExLlama instance and load the weights
-        tokenizer = ExLlamaTokenizer(tokenizer_path)            # create tokenizer from tokenizer model file
+        model = ExLlamaV2(config)
+        model.load()
 
-        cache = ExLlamaCache(model)                             # create cache for inference
-        generator = ExLlamaGenerator(model, tokenizer, cache)   # create generator
-        default_settings = {
-            k: getattr(generator.settings, k) for k in dir(generator.settings) if k[:2] != '__'
-        }
-    return generator, default_settings
+        tokenizer = ExLlamaV2Tokenizer(config)
+        cache = ExLlamaV2Cache(model)
+
+        lora = ExLlamaV2Lora.from_directory(model, lora_directory)
+
+        simple_generator = ExLlamaV2BaseGenerator(model, cache, tokenizer)
+
+    return simple_generator, lora
 
 generator = None
 default_settings = None
 prompt_prefix = decode_escapes(os.getenv("PROMPT_PREFIX", ""))
 prompt_suffix = decode_escapes(os.getenv("PROMPT_SUFFIX", ""))
 
-def generate_with_streaming(prompt, max_new_tokens):
-    global generator
-    generator.end_beam_search()
-
-    # Tokenizing the input
-    ids = generator.tokenizer.encode(prompt)
-    ids = ids[:, -generator.model.config.max_seq_len:]
-
-    generator.gen_begin_reuse(ids)
-    initial_len = generator.sequence[0].shape[0]
-    has_leading_space = False
-    for i in range(max_new_tokens):
-        token = generator.gen_single_token()
-        if i == 0 and generator.tokenizer.tokenizer.IdToPiece(int(token)).startswith('▁'):
-            has_leading_space = True
-
-        decoded_text = generator.tokenizer.decode(generator.sequence[0][initial_len:])
-        if has_leading_space:
-            decoded_text = ' ' + decoded_text
-
-        yield decoded_text
-        if token.item() == generator.tokenizer.eos_token_id:
-            break
-
 def inference(event) -> Union[str, Generator[str, None, None]]:
+
     logging.info(event)
-    job_input = event["input"]
-    if not job_input:
-        raise ValueError("No input provided")
+    prompt = event["input"]
+    max_new_token = event["max_new_tokens"]
 
-    prompt: str = job_input.pop("prompt_prefix", prompt_prefix) + job_input.pop("prompt") + job_input.pop("prompt_suffix", prompt_suffix)
-    max_new_tokens = job_input.pop("max_new_tokens", 100)
-    stream: bool = job_input.pop("stream", False)
+    settings = ExLlamaV2Sampler.Settings()
+    settings.temperature = event["temperature"]
+    settings.top_k = event["top_k"]
+    settings.top_p = event["top_p"]
+    settings.token_repetition_penalty = event["repetition_penalty"]
 
-    generator, default_settings = load_model()
+    simple_generator, lora = load_model()
+    output = simple_generator.generate_simple(prompt, settings, max_new_token, loras = lora)
 
-    settings = copy(default_settings)
-    settings.update(job_input)
-    for key, value in settings.items():
-        setattr(generator.settings, key, value)
-
-    if stream:
-        output: Union[str, Generator[str, None, None]] = generate_with_streaming(prompt, max_new_tokens)
-        for res in output:
-            yield res
-    else:
-        output_text = generator.generate_simple(prompt, max_new_tokens = max_new_tokens)
-        yield output_text[len(prompt):]
+    return output
 
 runpod.serverless.start({"handler": inference})
