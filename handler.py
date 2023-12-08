@@ -47,8 +47,8 @@ def load_model():
         token_read = os.environ["HF_TOKEN"] #"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"
         HfFolder.save_token(token_read)
 
-        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main", local_dir="/llama-fans/hub/full_model")
-        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main", local_dir="/llama-fans/hub/lora")
+        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main",) #local_dir="/llama-fans/hub/full_model")
+        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main",) #local_dir="/llama-fans/hub/lora")
 
         config = ExLlamaV2Config()
         config.model_dir = model_directory
