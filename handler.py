@@ -8,7 +8,6 @@ from exllamav2 import (
 
 from exllamav2.generator import (
     ExLlamaV2BaseGenerator,
-    ExLlamaV2StreamingGenerator,
     ExLlamaV2Sampler
 )
 
@@ -44,11 +43,11 @@ def load_model():
     global generator, default_settings
 
     if not generator:
-        token_read = os.environ["HF_TOKEN"] #"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"
+        token_read = os.environ["HF_TOKEN"]
         HfFolder.save_token(token_read)
 
-        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main",) #local_dir="/llama-fans/hub/full_model")
-        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main",) #local_dir="/llama-fans/hub/lora")
+        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main", local_dir="/llama-fans/hub/full_model")
+        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main", local_dir="/llama-fans/hub/lora")
 
         config = ExLlamaV2Config()
         config.model_dir = model_directory
