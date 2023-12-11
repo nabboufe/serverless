@@ -46,8 +46,8 @@ def load_model():
         token_read = os.environ["HF_TOKEN"]
         HfFolder.save_token(token_read)
 
-        model_directory = snapshot_download(repo_id=os.environ["MODEL_REPO"], revision="main", local_dir="/runpod-volume/hub/full_model")
-        lora_directory = snapshot_download(repo_id=os.environ["LORA_REPO"], revision="main", local_dir="/runpod-volume/hub/lora")
+        model_directory = "/data/models/Vigogne/base"
+        lora_directory = "/data/models/Vigogne/LORA"
 
         config = ExLlamaV2Config()
         config.model_dir = model_directory
@@ -65,10 +65,10 @@ def load_model():
 
     return simple_generator, lora
 
+
+
 generator = None
 default_settings = None
-prompt_prefix = decode_escapes(os.getenv("PROMPT_PREFIX", ""))
-prompt_suffix = decode_escapes(os.getenv("PROMPT_SUFFIX", ""))
 
 def inference(event) -> Union[str, Generator[str, None, None]]:
 
