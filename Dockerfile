@@ -11,8 +11,10 @@ RUN pip install --upgrade pip && \
 RUN git clone https://github.com/turboderp/exllamav2
 RUN pip install -r exllamav2/requirements.txt
 
+
 COPY handler.py /data/handler.py
 COPY __init.py__ /data/__init__.py
+COPY /models /data/models
 
 ENV PYTHONPATH=/data/exllama
 ENV MODEL_REPO=""
