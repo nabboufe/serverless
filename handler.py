@@ -26,7 +26,6 @@ ESCAPE_SEQUENCE_RE = re.compile(r'''
     ( \\U........      # 8-digit hex escapes
     | \\u....          # 4-digit hex escapes
     | \\x..            # 2-digit hex escapes
-    | \\[0-7]{1,3}     # Octal escapes
     | \\N\{[^}]+\}     # Unicode characters by name
     | \\[\\'"abfnrtv]  # Single-character escapes
     )''', re.UNICODE | re.VERBOSE)
@@ -65,8 +64,6 @@ def load_model():
 
     return simple_generator, lora
 
-
-
 generator = None
 default_settings = None
 
@@ -84,7 +81,7 @@ def inference(event) -> Union[str, Generator[str, None, None]]:
 
     simple_generator, lora = load_model()
     output = simple_generator.generate_simple(prompt, settings, max_new_token, loras = lora)
-
+    
     return output
 
 runpod.serverless.start({"handler": inference})

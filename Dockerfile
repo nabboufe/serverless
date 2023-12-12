@@ -8,8 +8,7 @@ WORKDIR /data
 RUN pip install --upgrade pip && \
     pip install safetensors==0.3.1 sentencepiece huggingface_hub \
         git+https://github.com/winglian/runpod-python.git@fix-generator-check ninja==1.11.1
-RUN git clone https://github.com/turboderp/exllamav2
-RUN pip install -r exllamav2/requirements.txt
+RUN pip install exllamav2
 
 
 COPY handler.py /data/handler.py

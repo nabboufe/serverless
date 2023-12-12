@@ -6,9 +6,9 @@ import argparse
 import sys
 import json
 
-API_KEY = ""
+API_KEY = "POJKJKXH5F213A8HO7A9ARD7T6XQIDPUM1258ZY9"
 
-endpoint_id = ""
+endpoint_id = "fimwy543smiqak"
 URI = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 
 def run(prompt):
@@ -73,9 +73,7 @@ def cancel_task(task_id):
 
 if __name__ == '__main__':
 
-    prompt = """
-        Salut ca va ?
-    """
+    prompt = """Salut ca va ?"""
 
     import time
     start = time.time()
