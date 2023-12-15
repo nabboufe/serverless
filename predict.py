@@ -19,47 +19,32 @@ def run(prompt):
         'top_k': 30,
         'top_p': 0.95,
         'repetition_penalty': 1.1,
-        'batch_size': 8,
+        'batch_size': 1,
         'params': False,
     }
 
-    response = requests.post(URI, json=dict(input=request), headers = {
-        "Authorization": f"Bearer {API_KEY}"
-    })
-
-    if response.status_code == 200:
-        data = response.json()
-        task_id = data.get('id')
-        return stream_output(task_id)
-
-
-def stream_output(task_id, stream=False):
-    url = f"https://api.runpod.ai/v2/{endpoint_id}/stream/{task_id}"
     headers = {
         "Authorization": f"Bearer {API_KEY}"
     }
 
-    previous_output = ''
+    response = requests.post(URI, json=dict(input=request), headers=headers)
+    data = response.json()
+    task_id = data.get('id')
+    status = f"https://api.runpod.ai/v2/fimwy543smiqak/status/{task_id}"
 
-    try:
-        while True:
-            response = requests.get(url, headers=headers)
-            print(f"response: {response}")
-            if response.status_code == 200:
-                data = response.json()
-                print(f"data: {data}")
-                if data.get('status') == 'COMPLETED':
-                    if not stream:
-                        return previous_output
-                    break
-            elif response.status_code >= 400:
-                print(response)
-            # Sleep for 0.1 seconds between each request
-            sleep(0.1 if stream else 1)
-    except Exception as e:
-        print(e)
-        cancel_task(task_id)
-    
+    while True :
+        response = requests.post(status, json=dict(input=request), headers=headers)
+        print(f"response: {response}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"data: {data}")
+        
+        if data["status"] != "IN_QUEUE" and data["status"] != "IN_PROGRESS" :
+            print(data["output"])
+            break
+        
+        sleep(3)
 
 def cancel_task(task_id):
     url = f"https://api.runpod.ai/v2/{endpoint_id}/cancel/{task_id}"
@@ -73,7 +58,7 @@ def cancel_task(task_id):
 
 if __name__ == '__main__':
 
-    prompt = """Salut ca va ?"""
+    prompt = """"""
 
     import time
     start = time.time()
