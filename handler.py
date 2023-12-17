@@ -43,7 +43,7 @@ def load_model():
 
     logging.info(f"generator: {not not simple_generator}, lora: {not not lora}")
 
-    if not simple_generator or not lora :
+    if not simple_generator :
         logging.info("simple generator")
         token_read = os.environ["HF_TOKEN"]
         HfFolder.save_token(token_read)
@@ -68,7 +68,6 @@ def load_model():
     return simple_generator, lora
 
 simple_generator = None
-lora = None
 default_settings = None
 
 def inference(event) -> Union[str, Generator[str, None, None]]:
@@ -85,7 +84,7 @@ def inference(event) -> Union[str, Generator[str, None, None]]:
 
     simple_generator, lora = load_model()
 
-    logging.info(prompt, settings, max_new_token, lora)
+    print(f"generator: {simple_generator}. lora: {lora}")
     output = simple_generator.generate_simple(prompt, settings, max_new_token, loras = lora)
 
     return output[len(prompt):]
