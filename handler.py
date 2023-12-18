@@ -39,30 +39,26 @@ def decode_escapes(s):
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
 def load_model():
-    global simple_generator, lora
+    global simple_generator
 
-    logging.info(f"generator: {not not simple_generator}, lora: {not not lora}")
+    logging.info("simple generator")
+
+    model_directory = "/data/models/Vigogne/base"
+    lora_directory = "/data/models/Vigogne/LORA"
+
+    config = ExLlamaV2Config()
+    config.model_dir = model_directory
+    config.prepare()
+
+    model = ExLlamaV2(config)
+    model.load()
+
+    tokenizer = ExLlamaV2Tokenizer(config)
+    cache = ExLlamaV2Cache(model)
+
+    lora = ExLlamaV2Lora.from_directory(model, lora_directory)
 
     if not simple_generator :
-        logging.info("simple generator")
-        token_read = os.environ["HF_TOKEN"]
-        HfFolder.save_token(token_read)
-
-        model_directory = "/data/models/Vigogne/base"
-        lora_directory = "/data/models/Vigogne/LORA"
-
-        config = ExLlamaV2Config()
-        config.model_dir = model_directory
-        config.prepare()
-
-        model = ExLlamaV2(config)
-        model.load()
-
-        tokenizer = ExLlamaV2Tokenizer(config)
-        cache = ExLlamaV2Cache(model)
-
-        lora = ExLlamaV2Lora.from_directory(model, lora_directory)
-
         simple_generator = ExLlamaV2BaseGenerator(model, cache, tokenizer)
 
     return simple_generator, lora
@@ -72,7 +68,6 @@ default_settings = None
 
 def inference(event) -> Union[str, Generator[str, None, None]]:
 
-    logging.info(event)
     prompt = event["input"]["prompt"]
     max_new_token = event["input"]["max_new_tokens"]
 
@@ -83,8 +78,6 @@ def inference(event) -> Union[str, Generator[str, None, None]]:
     settings.token_repetition_penalty = event["input"]["repetition_penalty"]
 
     simple_generator, lora = load_model()
-
-    print(f"generator: {simple_generator}. lora: {lora}")
     output = simple_generator.generate_simple(prompt, settings, max_new_token, loras = lora)
 
     return output[len(prompt):]
