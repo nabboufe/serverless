@@ -11,7 +11,7 @@ from exllamav2.generator import (
     ExLlamaV2Sampler
 )
 
-import os, glob
+import os
 import logging
 from typing import Generator, Union
 import runpod
@@ -19,52 +19,24 @@ from huggingface_hub import snapshot_download, HfFolder
 
 from copy import copy
 
-import re
-import codecs
+logging.info("v5 work? test")
 
-ESCAPE_SEQUENCE_RE = re.compile(r'''
-    ( \\U........      # 8-digit hex escapes
-    | \\u....          # 4-digit hex escapes
-    | \\x..            # 2-digit hex escapes
-    | \\N\{[^}]+\}     # Unicode characters by name
-    | \\[\\'"abfnrtv]  # Single-character escapes
-    )''', re.UNICODE | re.VERBOSE)
+model_directory = "/runpod-volume/hub/Vigogne/base/"
+lora_directory = "/runpod-volume/hub/Vigogne/LORA/"
 
-def decode_escapes(s):
-    def decode_match(match):
-        return codecs.decode(match.group(0), 'unicode-escape')
+config = ExLlamaV2Config()
+config.model_dir = model_directory
+config.prepare()
 
-    return ESCAPE_SEQUENCE_RE.sub(decode_match, s)
+model = ExLlamaV2(config)
+model.load()
 
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+tokenizer = ExLlamaV2Tokenizer(config)
+cache = ExLlamaV2Cache(model)
 
-def load_model():
-    global simple_generator
+lora = ExLlamaV2Lora.from_directory(model, lora_directory)
 
-    logging.info("simple generator")
-
-    model_directory = "/data/models/Vigogne/base"
-    lora_directory = "/data/models/Vigogne/LORA"
-
-    config = ExLlamaV2Config()
-    config.model_dir = model_directory
-    config.prepare()
-
-    model = ExLlamaV2(config)
-    model.load()
-
-    tokenizer = ExLlamaV2Tokenizer(config)
-    cache = ExLlamaV2Cache(model)
-
-    lora = ExLlamaV2Lora.from_directory(model, lora_directory)
-
-    if not simple_generator :
-        simple_generator = ExLlamaV2BaseGenerator(model, cache, tokenizer)
-
-    return simple_generator, lora
-
-simple_generator = None
-default_settings = None
+simple_generator = ExLlamaV2BaseGenerator(model, cache, tokenizer)
 
 def inference(event) -> Union[str, Generator[str, None, None]]:
 
@@ -77,7 +49,9 @@ def inference(event) -> Union[str, Generator[str, None, None]]:
     settings.top_p = event["input"]["top_p"]
     settings.token_repetition_penalty = event["input"]["repetition_penalty"]
 
-    simple_generator, lora = load_model()
+    print(f"generator: {simple_generator}. lora: {lora}")
+    print(f"prompt: {prompt}. settings: {settings}. max_new_token: {max_new_token}")
+
     output = simple_generator.generate_simple(prompt, settings, max_new_token, loras = lora)
 
     return output[len(prompt):]

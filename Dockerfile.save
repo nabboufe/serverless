@@ -10,7 +10,6 @@ RUN pip install --upgrade pip && \
         git+https://github.com/winglian/runpod-python.git@fix-generator-check ninja==1.11.1
 RUN pip install exllamav2
 
-
 COPY handler.py /data/handler.py
 COPY __init.py__ /data/__init__.py
 
